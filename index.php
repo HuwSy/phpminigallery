@@ -20,142 +20,234 @@
    * along with this program; if not, write to the Free Software
    * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    */
-   
+
   /*=== CONFIGURATION ===*/
   $CONFIG = array();
-  $CONFIG['thumb.width']    = 100;      // Thumbnail width (pixels)
-  $CONFIG['thumb.height']   = 100;      // Thumbnail height (pixels)
+  $CONFIG['thumb.width']    = 240;      // Thumbnail min width (pixels)
+  $CONFIG['thumb.height']   = 240;      // Thumbnail min height (pixels)
   $CONFIG['thumb.scale']    = 'gd2';    // Set to 'gd2', 'im' or 'gd'
+  $CONFIG['thumb.prefix']   = '';       // Prefix for thumb file names, defaults to '.' if thumbs same path as images
+  $CONFIG['thumb.suffix']   = '_' . $CONFIG['thumb.width'] . ".jpg";       // Suffix for thumb
+  $CONFIG['video.suffix']   = '_' . $CONFIG['thumb.width'] . ".gif";       // Suffix for thumb
   $CONFIG['tool.imagick']   = '/usr/bin/convert';   // Path to convert
-  $CONFIG['index.cols']     = 6;        // Colums per row on index print
+  $CONFIG['tool.ffmpeg']    = '/usr/bin/ffmpeg';    // Path to convert videos
   $CONFIG['template']       = 'template.php';       // Template file
-  
-  
+  $CONFIG['images']         = '/var/www/images';    // Start path of images
+  $CONFIG['thumbs']         = '/var/www/thumbs';    // Start path of thumbnails
+  $CONFIG['folder']         = 'folder.png';         // Folder icon
+
+  if ($CONFIG['images'] == $CONFIG['thumbs'] && $CONFIG['thumb.prefix'] == '') {
+    $CONFIG['thumb.prefix'] = '.';
+  }
+
+  /*=== ALLOW SUBFOLDERS ===*/
+  $path = "";
+  if(isset($_GET['path'])) {
+    $path = trim($_GET['path']);
+
+    //--- Protect against hacker attacks ---
+    if(preg_match('#\.\.#', $path)) die("Illegal characters in path!");
+  }
+
+  function create_gif($CONFIG, $file, $thfile) {
+    exec(sprintf(
+      '%s -ss 0 -t 3 -i %s -vf "fps=10,scale=%s:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 %s',
+      $CONFIG['tool.ffmpeg'],
+      $file,
+      $CONFIG['thumb.width'],
+      $thfile
+    ));
+  }
+
+  function create_thumb($CONFIG, $file, $thfile) {
+    //--- Get information about the image ---
+    $aySize = getimagesize($file);
+    if(!isset($aySize)) die("Picture $file not recognized...");
+
+    //--- Compute the thumbnail size, keep aspect ratio ---
+    $srcWidth = $aySize[0];  $srcHeight = $aySize[1];
+    if($srcWidth==0 || $srcHeight==0) {   // Avoid div by zero
+      $thWidth  = 0;
+      $thHeight = 0;
+    }else if($srcWidth > $srcHeight) {    // Landscape
+      $thWidth  = $CONFIG['thumb.height'] * $srcWidth / $srcHeight;
+      $thHeight = $CONFIG['thumb.height'];
+    }else {                               // Portrait
+      $thWidth  = $CONFIG['thumb.width'];
+      $thHeight = $CONFIG['thumb.width'] * $srcHeight / $srcWidth;
+    }
+
+    //--- Get scale mode ---
+    $scmode = strtolower($CONFIG['thumb.scale']);
+
+    //--- Create source image ---
+    if($scmode!='im') {
+      switch($aySize[2]) {
+        case 1: $imgPic = imagecreatefromgif($file);  break;
+        case 2: $imgPic = imagecreatefromjpeg($file); break;
+        case 3: $imgPic = imagecreatefrompng($file);  break;
+        default: die("Picture $file must be either JPEG, PNG or GIF..."); 
+      }
+    }
+
+    //--- Scale it ---
+    switch($scmode) {
+      case 'gd2':     // GD2
+        $imgThumb = imagecreatetruecolor($thWidth, $thHeight);
+        imagecopyresampled($imgThumb, $imgPic, 0,0, 0,0, $thWidth,$thHeight, $srcWidth,$srcHeight);
+        break;
+      case 'gd':      // GD
+        $imgThumb = imagecreate($thWidth,$thHeight);
+        imagecopyresized($imgThumb, $imgPic, 0,0, 0,0, $thWidth,$thHeight, $srcWidth,$srcHeight);
+        break;
+      case 'im':      // Image Magick
+        exec(sprintf(
+          '%s -geometry %dx%d -interlace plane %s jpeg:%s',
+          $CONFIG['tool.imagick'],
+          $CONFIG['thumb.width'],
+          $CONFIG['thumb.height'],
+          $file,
+          $thfile
+        ));
+        break;
+      default:
+        die("Unknown scale mode ".$CONFIG['thumb.scale']);
+    }
+
+    switch(exif_read_data($file)['Orientation']) {
+      case 5:
+        imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
+      case 6:
+        $imgThumb = imagerotate($imgThumb, 270, null);
+        break;
+      case 4:
+        imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
+      case 3:
+        $imgThumb = imagerotate($imgThumb, 180, null);
+        break;
+      case 7:
+        imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
+      case 8:
+        $imgThumb = imagerotate($imgThumb, 90, null);
+        break;
+    }
+
+    //--- Save it ---
+    if($scmode!='im') {
+      imagejpeg($imgThumb, $thfile);
+      imagedestroy($imgPic);
+      imagedestroy($imgThumb);
+    }
+  }
+
+  function display_thumb($thfile) {
+    //--- Check if there is an if-modified-since header ---
+    $fileModified = date('D, d M Y H:i:s \G\M\T', filemtime($thfile));
+    if(isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE']==$fileModified) {
+      header('HTTP/1.0 304 Not Modified');
+      exit();
+    }
+
+    //--- Send the thumbnail to the browser ---
+    session_cache_limiter('');
+    header('Content-Type: '.mime_content_type($thfile));
+    header("Content-Length: ".filesize($thfile));
+    header("Last-Modified: $fileModified");
+    readfile($thfile);
+    exit();
+  }
+
   /*=== SHOW A THUMBNAIL? ===*/
-  if(isset($_GET['thumb'])) {
-    $file = trim($_GET['thumb']);
+  if(isset($_GET['full'])) {
+    $file = trim($_GET['full']);
+
     //--- Protect against hacker attacks ---
     if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
-    $thfile = 'th_'.$file.'.jpg';
+
+    $file = $CONFIG['images'] . $path . "/" . $file;
+
+    display_thumb($file);
+  }
+
+  if(isset($_GET['thumb'])) {
+    $file = trim($_GET['thumb']);
+
+    //--- Protect against hacker attacks ---
+    if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
+    if ($path != "" && $path != "/") {
+      @mkdir($CONFIG['thumbs'] . $path, 0755, true);
+    }
+
+    if (preg_match('#\.(mov|mp4|avi)$#i', $file)) {
+      $thfile = $CONFIG['thumbs'] . $path . "/" . $CONFIG['thumb.prefix'].$file.$CONFIG['video.suffix'];
+    } else {
+      $thfile = $CONFIG['thumbs'] . $path . "/" . $CONFIG['thumb.prefix'].$file.$CONFIG['thumb.suffix'];
+    }
+    $file = $CONFIG['images'] . $path . "/" . $file;
+
     //--- Get the thumbnail ---
     if(is_file($file) && is_readable($file)) {
       //--- Check if the thumbnail is missing or out of date ---
       if(!is_file($thfile) || (filemtime($file)>filemtime($thfile))) {
-        //--- Get information about the image ---
-        $aySize = getimagesize($file);
-        if(!isset($aySize)) die("Picture $file not recognized...");
-        //--- Compute the thumbnail size, keep aspect ratio ---
-        $srcWidth = $aySize[0];  $srcHeight = $aySize[1];
-        if($srcWidth==0 || $srcHeight==0) {   // Avoid div by zero
-          $thWidth  = 0;
-          $thHeight = 0;
-        }else if($srcWidth > $srcHeight) {    // Landscape
-          $thWidth  = $CONFIG['thumb.width'];
-          $thHeight = round(($CONFIG['thumb.width'] * $srcHeight) / $srcWidth);
-        }else {                               // Portrait
-          $thWidth  = round(($CONFIG['thumb.height'] * $srcWidth) / $srcHeight);
-          $thHeight = $CONFIG['thumb.height'];
-        }
-        //--- Get scale mode ---
-        $scmode = strtolower($CONFIG['thumb.scale']);
-        //--- Create source image ---
-        if($scmode!='im') {
-          switch($aySize[2]) {
-            case 1:  $imgPic = imagecreatefromgif($file);  break;
-            case 2:  $imgPic = imagecreatefromjpeg($file); break;
-            case 3:  $imgPic = imagecreatefrompng($file);  break;
-            default: die("Picture $file must be either JPEG, PNG or GIF..."); 
-          }
-        }
-        //--- Scale it ---
-        switch($scmode) {
-          case 'gd2':     // GD2
-            $imgThumb = imagecreatetruecolor($thWidth, $thHeight);
-            imagecopyresampled($imgThumb, $imgPic, 0,0, 0,0, $thWidth,$thHeight, $srcWidth,$srcHeight);
-            break;
-          case 'gd':      // GD
-            $imgThumb = imagecreate($thWidth,$thHeight);
-            imagecopyresized($imgThumb, $imgPic, 0,0, 0,0, $thWidth,$thHeight, $srcWidth,$srcHeight);
-            break;
-          case 'im':      // Image Magick
-            exec(sprintf(
-              '%s -geometry %dx%d -interlace plane %s jpeg:%s',
-              $CONFIG['tool.imagick'],
-              $CONFIG['thumb.width'],
-              $CONFIG['thumb.height'],
-              $file,
-              $thfile
-            ));          
-            break;
-          default:
-            die("Unknown scale mode ".$CONFIG['thumb.scale']);
-        }
-        //--- Save it ---
-        if($scmode!='im') {
-          imagejpeg($imgThumb, $thfile);
-          imagedestroy($imgPic);
-          imagedestroy($imgThumb);
+        if (preg_match('#\.(mov|mp4|avi)$#i', $file)) {
+          create_gif($CONFIG, $file, $thfile);
+        } else {
+          create_thumb($CONFIG, $file, $thfile);
         }
       }
-
-      //--- Check if there is an if-modified-since header ---
-      $fileModified = date('D, d M Y H:i:s \G\M\T', filemtime($thfile));
-      if(isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE']==$fileModified) {
-        header('HTTP/1.0 304 Not Modified');
-        exit();
-      }
-      
-      //--- Send the thumbnail to the browser ---
-      session_cache_limiter('');
-      header('Content-Type: image/jpeg');
-      header("Content-Length: ".filesize($thfile));
-      header("Last-Modified: $fileModified");
-      readfile($thfile);
-      exit();
+      display_thumb($thfile);
     }else {
       //--- Tell there is no image like that ---
-      if(is_file($thfile)) unlink($thfile);         // Delete a matching thumbnail file
+      //if(is_file($thfile)) unlink($thfile);         // Delete a matching thumbnail file
       header('HTTP/1.0 404 Not Found');
       print('Sorry, this picture was not found');
       exit();
     }
   }
-  
+
   /*=== CREATE CONTEXT ===*/
   $CONTEXT = array();
-  
+
   /*=== GET FILE LISTING ===*/
-  $ayFiles = array();
-  $dh = opendir('.');
-  while(($file = readdir($dh)) !== false) {
-    if($file[0]=='.') continue;                     // No dirs and temp files
-    if(substr($file,0,3) == 'th_') continue;        // No thumbnails
-    if(preg_match('#\.(jpe?g|png|gif)$#i', $file)) {
-      if(is_file($file) && is_readable($file)) {
-        $ayFiles[] = $file;
+  $ayFiles = [];
+  $ayDirs = [];
+  chdir($CONFIG['images'] . $path);
+  array_multisort(array_map('filemtime', ($files = glob("*"))), SORT_DESC, $files);
+  foreach($files as $filename) {
+    if($filename[0]=='.') continue;                     // No dirs and temp files
+    if(preg_match('#\.(jpe?g|png|gif|mov|mp4|avi)$#i', $filename)) {
+      if(is_file($filename) && is_readable($filename)) {
+        $ayFiles[] = $filename;
       }
+    } elseif (is_dir($filename)) {
+      $ayDirs[] = $filename;
     }
   }
-  sort($ayFiles);
+
   $CONTEXT['count'] = count($ayFiles);
   $CONTEXT['files'] =& $ayFiles;
-  
+
   /*=== SHOW A PICTURE? ===*/
   if(isset($_GET['pic'])) {
     $file = trim($_GET['pic']);
+
     //--- Protect against hacker attacks ---
     if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
+
     //--- Check existence ---
-    if(!(is_file($file) && is_readable($file))) {
+    if(!(is_file($CONFIG['images'] . $path . "/" . $file) && is_readable($CONFIG['images'] . $path . "/" . $file))) {
       header('HTTP/1.0 404 Not Found');
       print('Sorry, this picture was not found');
       exit();
     }
+
     $CONTEXT['page'] = 'picture';
+
     //--- Find our index ---
     $index = array_search($file, $ayFiles);
     if(!isset($index) || $index===false) die("Invalid picture $file");
     $CONTEXT['current'] = $index+1;
+
     //--- Get neighbour pictures ---
     $CONTEXT['first']   = $ayFiles[0];
     $CONTEXT['last']    = $ayFiles[count($ayFiles)-1];
@@ -163,24 +255,41 @@
       $CONTEXT['prev']  = $ayFiles[$index-1];
     if($index<count($ayFiles)-1)
       $CONTEXT['next']  = $ayFiles[$index+1];
+
     //--- Assemble the content ---
-    list($pWidth,$pHeight) = getimagesize($file);
-    $page = sprintf(
-      '<img class="picimg" src="%s" width="%s" height="%s" alt="#%s" border="0" />',
-      htmlspecialchars($file),
-      htmlspecialchars($pWidth),
-      htmlspecialchars($pHeight),
-      htmlspecialchars($index+1)
-    );
+    if (preg_match('#\.(mov|mp4|avi)$#i', $file)) {
+      $page = sprintf(
+        '<video controls class="picimg" alt="#%s %s - %s" border="0"><source src="index.php?path=%s&full=%s" type="video/%s"></video>',
+        htmlspecialchars($index+1),
+        htmlspecialchars($file),
+        htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file))),
+        htmlspecialchars($path),
+        htmlspecialchars($file),
+        htmlspecialchars(substr($file,stripos($file,".")+1))
+      );
+    } else {
+      list($pWidth,$pHeight) = getimagesize($file);
+      $page = sprintf(
+        '<img class="picimg" src="index.php?path=%s&full=%s" width="%s" height="%s" alt="#%s %s - %s" border="0" />',
+        htmlspecialchars($path),
+        htmlspecialchars($file),
+        htmlspecialchars($pWidth),
+        htmlspecialchars($pHeight),
+        htmlspecialchars($index+1),
+        htmlspecialchars($file),
+        htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file)))
+      );
+    }
     if(isset($CONTEXT['next'])) {
-      $page = sprintf('<a href="index.php?pic=%s">%s</a>', htmlspecialchars($CONTEXT['next']), $page);
+      $page = sprintf('<a href="index.php?path=%s&pic=%s">%s</a>', htmlspecialchars($path), htmlspecialchars($CONTEXT['next']), $page);
     }
     $CONTEXT['pictag'] = $page;
     if(is_file($file.'.txt') && is_readable($file.'.txt')) {
       $CONTEXT['caption'] = join('', file($file.'.txt'));
+    } else {
+      $CONTEXT['caption'] = $file . " - " . date ("d/m/Y H:i:s", filemtime($file));
     }
   }
-  
   /*=== SHOW INDEX PRINT ===*/
   else{
     //--- Set context ---
@@ -190,37 +299,44 @@
   }
 
   //--- Assemble the index table ---
-  $page = '<table class="tabindex">'."\n";
-  $cnt  = 0;
-  foreach($ayFiles as $key=>$file) {
-    if($cnt % $CONFIG['index.cols'] == 0) $page .= '<tr>';
+  $page = '<div class="tabindex">'."\n";
+  if ($path != "" && $path != "/") {
     $page .= sprintf(
-      '<td><a href="index.php?pic=%s"><img class="thumbimg" src="index.php?thumb=%s" alt="#%s" border="0" /></a></td>',
-      htmlspecialchars($file),
-      htmlspecialchars($file),
-      htmlspecialchars($key+1)
+      '<div style="position: relative"><a href="index.php?path=%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#Parent" border="0" /></a><div class="caption">[ Parent ]</div></div>',
+      htmlspecialchars(substr($path,0,strripos($path, "/")))
     );
-    $cnt++;
-    if($cnt % $CONFIG['index.cols'] == 0) $page .= '</tr>'."\n";
   }
-  //--- Fill empty cells in last row ---
-  $close = false;
-  while($cnt % $CONFIG['index.cols'] != 0) {
-    $page .= '<td>&nbsp;</td>';
-    $close = true;
-    $cnt++;
+  foreach($ayDirs as $key=>$file) {
+    $page .= sprintf(
+      '<div style="position: relative"><a href="index.php?path=%s/%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#%s" border="0" /></a><div class="caption">%s</div></div>',
+      htmlspecialchars($path),
+      htmlspecialchars($file),
+      htmlspecialchars($file),
+      htmlspecialchars($file)
+    );
   }
-  if($close) $page .= '</tr>'."\n";
-  $page .= '</table>';
+  foreach($ayFiles as $key=>$file) {
+    $page .= sprintf(
+      '<div><a href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
+      htmlspecialchars($path),
+      htmlspecialchars($file),
+      htmlspecialchars($path),
+      htmlspecialchars($file),
+      htmlspecialchars($key+1),
+      htmlspecialchars($file),
+      htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file)))
+    );
+  }
+  $page .= '</div>';
   //--- Set content ---
   $CONTEXT['indextag'] = $page;
-  
+
   /*=== GET TEMPLATE CONTENT ===*/
   ob_start();
   require($CONFIG['template']);
   $template = ob_get_contents();
   ob_end_clean();
-  
+
   /*=== REMOVE UNMATCHING SECTION ===*/
   if($CONTEXT['page']=='index') {
     $template = preg_replace('#<pmg:if\s+page="picture">.*?</pmg:if>#s', '', $template);
@@ -229,20 +345,33 @@
     $template = preg_replace('#<pmg:if\s+page="index">.*?</pmg:if>#s', '', $template);
     $template = preg_replace('#<pmg:if\s+page="picture">(.*?)</pmg:if>#s', '$1', $template);
   }
-  
+
   /*=== REPLACE TEMPLATE TAGS ===*/
   //--- Always present neighbour links ---
   $aySearch  = array(
     '<pmg:first>', '</pmg:first>',
     '<pmg:last>', '</pmg:last>',
+    '<pmg:root>', '</pmg:root>',
     '<pmg:toc>', '</pmg:toc>'
   );
   $ayReplace = array();
-  $ayReplace[] = sprintf('<a href="index.php?pic=%s">', htmlspecialchars($CONTEXT['first']));
+  if ($CONTEXT['first'] == "") {
+    $ayReplace[] = '<span style="display:none">';
+    $ayReplace[] = '</span>';
+  } else {
+    $ayReplace[] = sprintf('<a href="index.php?path=%s&pic=%s">', htmlspecialchars($path),htmlspecialchars($CONTEXT['first']));
+    $ayReplace[] = '</a>';
+  }
+  $ayReplace[] = sprintf('<a href="index.php?path=%s&pic=%s">', htmlspecialchars($path),htmlspecialchars($CONTEXT['last']));
   $ayReplace[] = '</a>';
-  $ayReplace[] = sprintf('<a href="index.php?pic=%s">', htmlspecialchars($CONTEXT['last']));
-  $ayReplace[] = '</a>';
-  $ayReplace[] = '<a href="index.php">';
+  if ($path == "" || $path == "/") {
+    $ayReplace[] = '<span style="display:none">';
+    $ayReplace[] = '</span>';
+  } else {
+    $ayReplace[] = sprintf('<a href="index.php?path=%s">', htmlspecialchars(substr($path,0,strripos($path, "/"))));
+    $ayReplace[] = '</a>';
+  }
+  $ayReplace[] = sprintf('<a href="index.php?path=%s">', htmlspecialchars($path));
   $ayReplace[] = '</a>';
   $template = str_replace($aySearch, $ayReplace, $template);
 
@@ -250,7 +379,7 @@
   if(isset($CONTEXT['prev'])) {
     $aySearch  = array('<pmg:prev>', '</pmg:prev>');
     $ayReplace = array(
-      sprintf('<a id="prev" href="index.php?pic=%s">', htmlspecialchars($CONTEXT['prev'])),
+      sprintf('<a id="prev" href="index.php?path=%s&pic=%s">', htmlspecialchars($path),htmlspecialchars($CONTEXT['prev'])),
       '</a>'
     );
     $template = str_replace($aySearch, $ayReplace, $template);
@@ -262,14 +391,14 @@
   if(isset($CONTEXT['next'])) {
     $aySearch  = array('<pmg:next>', '</pmg:next>');
     $ayReplace = array(
-      sprintf('<a id="next" href="index.php?pic=%s">', htmlspecialchars($CONTEXT['next'])),
+      sprintf('<a id="next" href="index.php?path=%s&pic=%s">', htmlspecialchars($path),htmlspecialchars($CONTEXT['next'])),
       '</a>'
     );
     $template = str_replace($aySearch, $ayReplace, $template);
   }else {
     $template = preg_replace('#<pmg:next>.*?</pmg:next>#s', '', $template);
   }
-  
+
   //--- Image, Index Print, Caption ---
   $aySearch  = array('<pmg:image/>', '<pmg:index/>', '<pmg:caption/>', '<pmg:count/>', '<pmg:current/>');
   $ayReplace = array(
@@ -280,10 +409,11 @@
     (isset($CONTEXT['current'])  ? $CONTEXT['current']  : ''),
   );
   $template = str_replace($aySearch, $ayReplace, $template);
-  
+
   /*=== PRINT TEMPLATE ===*/
   ob_start('ob_gzhandler');
   print($template);
   print("\n".'<!-- Created by PHP Mini Gallery, (C) Richard Shred Koerber, https://github.com/shred/phpminigallery -->'."\n");
   exit();
 ?>
+1

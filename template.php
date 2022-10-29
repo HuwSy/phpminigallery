@@ -53,55 +53,87 @@
       width: 100%;
     }
 
-    .tabindex TD {
-      width: auto;
-      background-color: #C0C0C0;
-      text-align: center;
-      height: 110px;
+    .tabindex div {
+      display: inline-block;
+      max-width: 240px;
+      max-height: 240px;
+      overflow: hidden;
     }
 
     .thumbimg {
       background-color: #000000;
       padding: 3px;
+      margin: 50%;
+      transform: translate(-50%,-50%);
     }
 
     .picture {
       background-color: #C0C0C0;
       text-align: center;
-      height: 98%;
+      height: 100%;
     }
+
+    .nav {
+      z-index: 2;
+      position: fixed;
+      top: 0;
+      text-align: right;
+      width: 100%;
+      background: black;
+      opacity: 0.75;
+      right: 0;
+      padding-right: 10px;
+    }
+
+      .nav a {
+        color: white;
+      }
 
     .picimg {
       background-color: #000000;
       padding: 0;
+      margin: auto;
       margin-bottom: 0;
       width: auto;
       height: auto;
       max-width: 100%;
-      max-height: 98%;
+      max-height: 100%;
       display: block;
+    }
+
+    .caption {
+      position: absolute;
+      bottom: 0;
+      text-align: center;
+      width: 100%;
+      background: black;
+      opacity: 0.75;
+      color: white;
+      right: 0;
     }
   //--></style>
 </head>
 <body>
   <pmg:if page="index">
-    <div align="right">
+    <div class="Nav">
+      <pmg:root>[ Parent ]&nbsp;</pmg:root>
       <pmg:first>[ Start... ]</pmg:first>
     </div>
     <pmg:index/>
   </pmg:if>
 
   <pmg:if page="picture">
-    <div align="right">
-      <pmg:toc>[ Index ]&nbsp;</pmg:toc>
+    <div class="nav">
+      <pmg:root>[ Parent ]&nbsp;</pmg:root>
+      <pmg:toc>[ Folder ]&nbsp;</pmg:toc>
       <pmg:first>[ First ]&nbsp;</pmg:first>
       <pmg:prev>[ Previous ]&nbsp;</pmg:prev>
       <pmg:next>[ Next ]&nbsp;</pmg:next>
       <pmg:last>[ Last ]</pmg:last>
     </div>
     <div class="picture">
-      <pmg:image/><br />
-      <pmg:caption/>
+      <pmg:image/>
+      <div class="caption"><pmg:caption/></div>
     </div>
   </pmg:if>
 <script>
