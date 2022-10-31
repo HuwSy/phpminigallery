@@ -86,8 +86,10 @@
       background-color: #000000;
       margin: auto;
       display: block;
-      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
       width: auto;
+      height: auto;
     }
 
     .caption {
