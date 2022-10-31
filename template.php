@@ -48,28 +48,31 @@
 
       .tabindex > div {
         display: inline-block;
-        max-width: 12.5%;
-        max-height: 12.5vw;
+        width: 12.5%;
+        height: calc(12.5vw * <ratio>);
         overflow: hidden;
         font-size: 28pt;
+        position: relative;
+        padding: 0;
+        margin: 0;
       }
       @media only screen and (max-width: 1200px) {
        .tabindex > div {
-        max-width: 20%;
-        max-height: 20vw;
+        width: 20%;
+        height: calc(20vw * <ratio>);
        }
       }
       @media only screen and (max-width: 1000px) {
        .tabindex > div {
-        max-width: 25%;
-        max-height: 25vw;
+        width: 25%;
+        height: calc(25vw * <ratio>);
         font-size: 32pt;
        }
       }
 
     .thumbimg {
-      min-width: 240px;
-      min-height: 240px;
+      min-width: 103%;
+      min-height: 103%;
       margin: 50%;
       transform: translate(-50%,-50%);
     }

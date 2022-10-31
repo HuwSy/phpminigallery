@@ -41,6 +41,7 @@
   if ($CONFIG['images'] == $CONFIG['thumbs'] && $CONFIG['thumb.prefix'] == '') {
     $CONFIG['thumb.prefix'] = '.';
   }
+  $CONFIG['thumb.ratio'] = $CONFIG['thumb.height']/$CONFIG['thumb.width'];
 
   /*=== ALLOW SUBFOLDERS ===*/
   $path = "";
@@ -364,6 +365,7 @@
   $template = ob_get_contents();
   ob_end_clean();
 
+  $template = preg_replace('#<ratio>#s', $CONFIG['thumb.ratio'], $template);
   /*=== REMOVE UNMATCHING SECTION ===*/
   if($CONTEXT['page']=='index') {
     $template = preg_replace('#<pmg:if\s+page="picture">.*?</pmg:if>#s', '', $template);
