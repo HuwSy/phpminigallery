@@ -48,10 +48,23 @@
 
       .tabindex > div {
         display: inline-block;
-        max-width: 240px;
-        max-height: 240px;
+        max-width: 12.5%;
+        max-height: 12.5vw;
         overflow: hidden;
+        font-size: 28pt;
+      }
+      @media only screen and (max-width: 1200px) {
+       .tabindex > div {
+        max-width: 20%;
+        max-height: 20vw;
+       }
+      }
+      @media only screen and (max-width: 1000px) {
+       .tabindex > div {
+        max-width: 25%;
+        max-height: 25vw;
         font-size: 32pt;
+       }
       }
 
     .thumbimg {
@@ -102,6 +115,13 @@
       opacity: 0.75;
       color: white;
       right: 0;
+    }
+
+    .caption .exif {
+      display: none;
+    }
+    .caption:hover .exif {
+      display: block;
     }
   //--></style>
 </head>

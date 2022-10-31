@@ -35,6 +35,8 @@
   $CONFIG['images']         = '/var/www/gallery/images';    // Start path of images
   $CONFIG['thumbs']         = '/var/www/gallery/thumbs';    // Start path of thumbnails
   $CONFIG['folder']         = 'folder.png';         // Folder icon
+  $CONFIG['files.images']   = 'jpe?g|png|gif';      // Allowed images, non jpg|png|gif must be supported by imagemagick and ideally browser
+  $CONFIG['files.videos']   = 'mov|mp4|avi|mpe?g';  // Allowed videos, must be supported by ffmpeg and ideally browser
 
   if ($CONFIG['images'] == $CONFIG['thumbs'] && $CONFIG['thumb.prefix'] == '') {
     $CONFIG['thumb.prefix'] = '.';
@@ -47,6 +49,13 @@
 
     //--- Protect against hacker attacks ---
     if(preg_match('#\.\.#', $path)) die("Illegal characters in path!");
+  }
+
+  function calcGps($val) {
+    if (isset($val)) {
+      $exp = explode('/', $val);
+      return $exp[0] / $exp[1];
+    }
   }
 
   function create_gif($CONFIG, $file, $thfile) {
@@ -86,7 +95,7 @@
         case 1: $imgPic = imagecreatefromgif($file);  break;
         case 2: $imgPic = imagecreatefromjpeg($file); break;
         case 3: $imgPic = imagecreatefrompng($file);  break;
-        default: die("Picture $file must be either JPEG, PNG or GIF..."); 
+        default: $scmode = 'im'; 
       }
     }
 
@@ -114,26 +123,26 @@
         die("Unknown scale mode ".$CONFIG['thumb.scale']);
     }
 
-    switch(exif_read_data($file)['Orientation']) {
-      case 5:
-        imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
-      case 6:
-        $imgThumb = imagerotate($imgThumb, 270, null);
-        break;
-      case 4:
-        imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
-      case 3:
-        $imgThumb = imagerotate($imgThumb, 180, null);
-        break;
-      case 7:
-        imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
-      case 8:
-        $imgThumb = imagerotate($imgThumb, 90, null);
-        break;
-    }
-
     //--- Save it ---
     if($scmode!='im') {
+      switch(exif_read_data($file)['Orientation']) {
+        case 5:
+          imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
+        case 6:
+          $imgThumb = imagerotate($imgThumb, 270, null);
+          break;
+        case 4:
+          imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
+        case 3:
+          $imgThumb = imagerotate($imgThumb, 180, null);
+          break;
+        case 7:
+          imageflip($imgThumb, IMG_FLIP_HORIZONTAL);
+        case 8:
+          $imgThumb = imagerotate($imgThumb, 90, null);
+          break;
+      }
+
       imagejpeg($imgThumb, $thfile);
       imagedestroy($imgPic);
       imagedestroy($imgThumb);
@@ -179,7 +188,7 @@
       @mkdir($CONFIG['thumbs'] . $path, 0755, true);
     }
 
-    if (preg_match('#\.(mov|mp4|avi)$#i', $file)) {
+    if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
       $thfile = $CONFIG['thumbs'] . $path . "/" . $CONFIG['thumb.prefix'].$file.$CONFIG['video.suffix'];
     } else {
       $thfile = $CONFIG['thumbs'] . $path . "/" . $CONFIG['thumb.prefix'].$file.$CONFIG['thumb.suffix'];
@@ -190,7 +199,7 @@
     if(is_file($file) && is_readable($file)) {
       //--- Check if the thumbnail is missing or out of date ---
       if(!is_file($thfile) || (filemtime($file)>filemtime($thfile))) {
-        if (preg_match('#\.(mov|mp4|avi)$#i', $file)) {
+        if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
           create_gif($CONFIG, $file, $thfile);
         } else {
           create_thumb($CONFIG, $file, $thfile);
@@ -216,7 +225,7 @@
   array_multisort(array_map('filemtime', ($files = glob("*"))), SORT_DESC, $files);
   foreach($files as $filename) {
     if($filename[0]=='.') continue;                     // No dirs and temp files
-    if(preg_match('#\.(jpe?g|png|gif|mov|mp4|avi)$#i', $filename)) {
+    if(preg_match('#\.(' . $CONFIG['files.images'] . '|' . $CONFIG['files.videos'] . ')$#i', $filename)) {
       if(is_file($filename) && is_readable($filename)) {
         $ayFiles[] = $filename;
       }
@@ -258,7 +267,7 @@
       $CONTEXT['next']  = $ayFiles[$index+1];
 
     //--- Assemble the content ---
-    if (preg_match('#\.(mov|mp4|avi)$#i', $file)) {
+    if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
       $page = sprintf(
         '<video controls class="picimg" alt="#%s %s - %s" border="0"><source src="index.php?path=%s&full=%s" type="%s"></video>',
         htmlspecialchars($index+1),
@@ -285,10 +294,26 @@
       $page = sprintf('<span href="index.php?path=%s&pic=%s">%s</span>', htmlspecialchars($path), htmlspecialchars($CONTEXT['next']), $page);
     }
     $CONTEXT['pictag'] = $page;
+    $exif = exif_read_data($file, 0, true);
+    $output = '';
+    if (isset($exif)) {
+      $output .= '<div class="exif">';
+      $output .= sprintf("Make: %s<br>", $exif["IFD0"]["Make"]);
+      $output .= sprintf("Model: %s<br>", $exif["IFD0"]["Model"]);
+      $output .= sprintf("Exposure: %s<br>", $exif["EXIF"]["ExposureTime"]);
+      $output .= sprintf("ISO: %s<br>", $exif["EXIF"]["ISOSpeedRatings"]);
+      if (isset($exif["GPS"])) {
+        $output .= sprintf("Latitude: %s' %sm %ss<br>", calcGps($exif["GPS"]["GPSLatitude"][0]), calcGps($exif["GPS"]["GPSLatitude"][1]), round(calcGps($exif["GPS"]["GPSLatitude"][2])));
+        $output .= sprintf("Longitude: %s' %sm %ss<br>", calcGps($exif["GPS"]["GPSLongitude"][0]), calcGps($exif["GPS"]["GPSLongitude"][1]), round(calcGps($exif["GPS"]["GPSLongitude"][2])));
+        $output .= sprintf("Altitude: %sm<br>", round(calcGps($exif["GPS"]["GPSAltitude"]),1));
+        $output .= sprintf("Direction: %sdeg<br>", round(calcGps($exif["GPS"]["GPSImgDirection"]),1));
+      }
+      $output .= "</div>";
+    }
     if(is_file($file.'.txt') && is_readable($file.'.txt')) {
-      $CONTEXT['caption'] = join('', file($file.'.txt'));
+      $CONTEXT['caption'] = join('', file($file.'.txt')) . $output;
     } else {
-      $CONTEXT['caption'] = $file . " - " . date ("d/m/Y H:i:s", filemtime($file));
+      $CONTEXT['caption'] = $file . " - " . date ("d/m/Y H:i:s", filemtime($file)) . $output;
     }
   }
   /*=== SHOW INDEX PRINT ===*/
