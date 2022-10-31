@@ -235,7 +235,7 @@
     }
   }
 
-  $CONTEXT['count'] = count($ayFiles);
+  $CONTEXT['count'] = count($ayFiles) + count($ayDirs);
   $CONTEXT['files'] =& $ayFiles;
 
   /*=== SHOW A PICTURE? ===*/
@@ -291,30 +291,41 @@
         htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file)))
       );
     }
-    if(isset($CONTEXT['next'])) {
-      $page = sprintf('<span href="index.php?path=%s&pic=%s">%s</span>', htmlspecialchars($path), htmlspecialchars($CONTEXT['next']), $page);
-    }
     $CONTEXT['pictag'] = $page;
     $exif = exif_read_data($file, 0, true);
     $output = '';
-    if (isset($exif)) {
+    if (isset($exif) && isset($exif["EXIF"])) {
       $output .= '<div class="exif">';
-      $output .= sprintf("Make: %s<br>", $exif["IFD0"]["Make"]);
-      $output .= sprintf("Model: %s<br>", $exif["IFD0"]["Model"]);
-      $output .= sprintf("Exposure: %s<br>", $exif["EXIF"]["ExposureTime"]);
-      $output .= sprintf("ISO: %s<br>", $exif["EXIF"]["ISOSpeedRatings"]);
+      $output .= sprintf("Device: %s %s<br>", $exif["IFD0"]["Make"], $exif["IFD0"]["Model"]);
+      $output .= sprintf("Exposure: %ss (ISO%s)<br>", $exif["EXIF"]["ExposureTime"], $exif["EXIF"]["ISOSpeedRatings"]);
       if (isset($exif["GPS"])) {
-        $output .= sprintf("Latitude: %s' %sm %ss<br>", calcGps($exif["GPS"]["GPSLatitude"][0]), calcGps($exif["GPS"]["GPSLatitude"][1]), round(calcGps($exif["GPS"]["GPSLatitude"][2])));
-        $output .= sprintf("Longitude: %s' %sm %ss<br>", calcGps($exif["GPS"]["GPSLongitude"][0]), calcGps($exif["GPS"]["GPSLongitude"][1]), round(calcGps($exif["GPS"]["GPSLongitude"][2])));
+        $output .= sprintf(
+          "Latitude: %s %s° %s' %ss - <a href=https://www.openstreetmap.org/?lat=%s%s&lon=%s%s&zoom=15 target=_blank style=color:white> Map >></a><br>",
+          $exif['GPS']['GPSLatitudeRef'] == "S" ? "-" : "",
+          calcGps($exif["GPS"]["GPSLatitude"][0]),
+          calcGps($exif["GPS"]["GPSLatitude"][1]),
+          round(calcGps($exif["GPS"]["GPSLatitude"][2])),
+          $exif['GPS']['GPSLatitudeRef'] == "S" ? "-" : "",
+          calcGps($exif["GPS"]["GPSLatitude"][0]) + calcGps($exif["GPS"]["GPSLatitude"][1])/60 + round(calcGps($exif["GPS"]["GPSLatitude"][2]))/3600,
+          $exif['GPS']['GPSLongitudeRef'] == "W" ? "-" : "",
+          calcGps($exif["GPS"]["GPSLongitude"][0]) + calcGps($exif["GPS"]["GPSLongitude"][1])/60 + round(calcGps($exif["GPS"]["GPSLongitude"][2]))/3600
+        );
+        $output .= sprintf(
+          "Longitude: %s %s° %s' %ss<br>",
+          $exif['GPS']['GPSLongitudeRef'] == "W" ? "-" : "",
+          calcGps($exif["GPS"]["GPSLongitude"][0]),
+          calcGps($exif["GPS"]["GPSLongitude"][1]),
+          round(calcGps($exif["GPS"]["GPSLongitude"][2]))
+        );
         $output .= sprintf("Altitude: %sm<br>", round(calcGps($exif["GPS"]["GPSAltitude"]),1));
-        $output .= sprintf("Direction: %sdeg<br>", round(calcGps($exif["GPS"]["GPSImgDirection"]),1));
+        $output .= sprintf("Direction: %s°<br>", round(calcGps($exif["GPS"]["GPSImgDirection"]),1));
       }
       $output .= "</div>";
     }
     if(is_file($file.'.txt') && is_readable($file.'.txt')) {
       $CONTEXT['caption'] = join('', file($file.'.txt')) . $output;
     } else {
-      $CONTEXT['caption'] = $file . " - " . date ("d/m/Y H:i:s", filemtime($file)) . $output;
+      $CONTEXT['caption'] = $file . " - " . date("d/m/Y H:i:s", filemtime($file)) . $output;
     }
   }
   /*=== SHOW INDEX PRINT ===*/
@@ -329,13 +340,13 @@
   $page = '<div class="tabindex">'."\n";
   if ($path != "" && $path != "/") {
     $page .= sprintf(
-      '<div style="position: relative"><a href="index.php?path=%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#Parent" border="0" /></a><div class="caption">[ Parent ]</div></div>',
+      '<div class="tiles"><a href="index.php?path=%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#Parent" border="0" /><div class="caption">[ Up ]</div></a></div>',
       htmlspecialchars(substr($path,0,strripos($path, "/")))
     );
-  }
+  }#
   foreach($ayDirs as $key=>$file) {
     $page .= sprintf(
-      '<div style="position: relative"><a href="index.php?path=%s/%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#%s" border="0" /></a><div class="caption">%s</div></div>',
+      '<div class="tiles"><a href="index.php?path=%s/%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#%s" border="0" /><div class="caption">%s</div></a></div>',
       htmlspecialchars($path),
       htmlspecialchars($file),
       htmlspecialchars($file),
@@ -344,7 +355,7 @@
   }
   foreach($ayFiles as $key=>$file) {
     $page .= sprintf(
-      '<div><a id="%s" href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
+      '<div class="tiles"><a id="%s" href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
       htmlspecialchars(preg_replace("/[^a-zA-Z0-9]/", "", $file)),
       htmlspecialchars($path),
       htmlspecialchars($file),
@@ -365,7 +376,7 @@
   $template = ob_get_contents();
   ob_end_clean();
 
-  $template = preg_replace('#<ratio>#s', $CONFIG['thumb.ratio'], $template);
+  $template = preg_replace('#<pmg:ratio/>#s', $CONFIG['thumb.ratio'], $template);
   /*=== REMOVE UNMATCHING SECTION ===*/
   if($CONTEXT['page']=='index') {
     $template = preg_replace('#<pmg:if\s+page="picture">.*?</pmg:if>#s', '', $template);
@@ -429,13 +440,14 @@
   }
 
   //--- Image, Index Print, Caption ---
-  $aySearch  = array('<pmg:image/>', '<pmg:index/>', '<pmg:caption/>', '<pmg:count/>', '<pmg:current/>');
+  $aySearch  = array('<pmg:image/>', '<pmg:index/>', '<pmg:caption/>', '<pmg:count/>', '<pmg:current/>', '<pmg:path/>');
   $ayReplace = array(
     (isset($CONTEXT['pictag'])   ? $CONTEXT['pictag']   : ''),
     (isset($CONTEXT['indextag']) ? $CONTEXT['indextag'] : ''),
     (isset($CONTEXT['caption'])  ? '<div class="caption">' . $CONTEXT['caption'] . '</div>' : ''),
     $CONTEXT['count'],
     (isset($CONTEXT['current'])  ? $CONTEXT['current']  : ''),
+    $path == "" ? "" : $path
   );
   $template = str_replace($aySearch, $ayReplace, $template);
 
@@ -445,4 +457,3 @@
   print("\n".'<!-- Created by PHP Mini Gallery, (C) Richard Shred Koerber, https://github.com/shred/phpminigallery -->'."\n");
   exit();
 ?>
-1

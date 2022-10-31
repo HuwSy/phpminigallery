@@ -26,7 +26,7 @@
 <html>
 <head>
   <pmg:if page="index">
-    <title>A gallery of <pmg:count/> pictures</title>
+    <title>A gallery of <pmg:count/> folders and pictures in Gallery<pmg:path/></title>
   </pmg:if>
   <pmg:if page="picture">
     <title>Picture <pmg:current/>/<pmg:count/></title>
@@ -46,60 +46,59 @@
       width: 100%;
     }
 
-      .tabindex > div {
-        display: inline-block;
-        width: 12.5%;
-        height: calc(12.5vw * <ratio>);
-        overflow: hidden;
-        font-size: 28pt;
-        position: relative;
-        padding: 0;
-        margin: 0;
-      }
-      @media only screen and (max-width: 1200px) {
-       .tabindex > div {
+    .tiles {
+      display: inline-block;
+      width: 12.5%;
+      height: calc(12.5vw * <pmg:ratio/>);
+      overflow: hidden;
+      font-size: 28pt;
+      position: relative;
+      padding: 0;
+      margin: 0;
+    }
+    @media only screen and (max-width: 1200px) {
+     .tiles {
         width: 20%;
-        height: calc(20vw * <ratio>);
-       }
+        height: calc(20vw * <pmg:ratio/>);
       }
-      @media only screen and (max-width: 1000px) {
-       .tabindex > div {
+    }
+    @media only screen and (max-width: 1000px) {
+      .tiles {
         width: 25%;
-        height: calc(25vw * <ratio>);
+        height: calc(25vw * <pmg:ratio/>);
         font-size: 32pt;
-       }
       }
+    }
 
     .thumbimg {
-      min-width: 103%;
-      min-height: 103%;
+      min-width: 105%;
+      min-height: 105%;
       margin: 50%;
       transform: translate(-50%,-50%);
     }
 
     .picture {
-      background-color: #C0C0C0;
-      height: 100%;
+      height: 97%;
+      align-content: center;
+      display: flex;
     }
 
     .nav {
       z-index: 2;
       position: fixed;
       top: 0;
-      text-align: right;
+      text-align: center;
       width: 100%;
       background: black;
       opacity: 0.75;
       right: 0;
-      padding-right: 10px;
     }
 
-      .nav a {
-        color: white;
-      }
+    .nav a {
+      color: white;
+    }
 
     .picimg {
-      background-color: #000000;
       margin: auto;
       display: block;
       max-width: 100%;
@@ -118,12 +117,14 @@
       opacity: 0.75;
       color: white;
       right: 0;
-      min-height: 25px;
+      font-weight: bold;
     }
-    @media only screen and (max-width: 1000px) {
-      .caption {
-        min-height: 50px;
-      }
+
+    .tabindex .caption {
+      height: 50%;
+    }
+    .picture .caption {
+      font-size: 18px;
     }
     .caption .exif {
       display: none;
@@ -135,26 +136,26 @@
 </head>
 <body>
   <pmg:if page="index">
-    <div class="Nav">
-      <pmg:root>[ Parent ]&nbsp;</pmg:root>
-      <pmg:first>[ Start... ]</pmg:first>
-    </div>
     <pmg:index/>
   </pmg:if>
 
   <pmg:if page="picture">
     <div class="nav">
-      <pmg:root>[ Parent ]&nbsp;</pmg:root>
-      <pmg:toc>[ Folder ]&nbsp;</pmg:toc>
-      <pmg:first>[ First ]&nbsp;</pmg:first>
-      <pmg:prev>[ Previous ]&nbsp;</pmg:prev>
-      <pmg:next>[ Next ]&nbsp;</pmg:next>
-      <pmg:last>[ Last ]</pmg:last>
+      <div style="float: right">
+        <pmg:next>[ > ]&nbsp;</pmg:next>
+        <pmg:last>[ >> ]</pmg:last>
+      </div>
+      <div style="float: left">
+        <pmg:first>[ << ]</pmg:first>
+        <pmg:prev>&nbsp;[ < ]</pmg:prev>
+      </div>
+      <pmg:toc>[ <pmg:path/> ]&nbsp;</pmg:toc>
     </div>
     <div class="picture">
       <pmg:image/>
       <pmg:caption/>
     </div>
+    <style>body{height: 100%;overflow:hidden}</style>
   </pmg:if>
 <script>
 document.onkeydown = function(ev) {
