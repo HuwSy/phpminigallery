@@ -32,8 +32,8 @@
   $CONFIG['tool.imagick']   = '/usr/bin/convert';   // Path to convert
   $CONFIG['tool.ffmpeg']    = '/usr/bin/ffmpeg';    // Path to convert videos
   $CONFIG['template']       = 'template.php';       // Template file
-  $CONFIG['images']         = '/var/www/images';    // Start path of images
-  $CONFIG['thumbs']         = '/var/www/thumbs';    // Start path of thumbnails
+  $CONFIG['images']         = '/var/www/gallery/images';    // Start path of images
+  $CONFIG['thumbs']         = '/var/www/gallery/thumbs';    // Start path of thumbnails
   $CONFIG['folder']         = 'folder.png';         // Folder icon
 
   if ($CONFIG['images'] == $CONFIG['thumbs'] && $CONFIG['thumb.prefix'] == '') {
@@ -153,6 +153,7 @@
     header('Content-Type: '.mime_content_type($thfile));
     header("Content-Length: ".filesize($thfile));
     header("Last-Modified: $fileModified");
+    header('Expires: ' . gmdate('D, d M Y H:i:s', strtotime("+30 days")) . ' GMT');
     readfile($thfile);
     exit();
   }
@@ -259,13 +260,13 @@
     //--- Assemble the content ---
     if (preg_match('#\.(mov|mp4|avi)$#i', $file)) {
       $page = sprintf(
-        '<video controls class="picimg" alt="#%s %s - %s" border="0"><source src="index.php?path=%s&full=%s" type="video/%s"></video>',
+        '<video controls class="picimg" alt="#%s %s - %s" border="0"><source src="index.php?path=%s&full=%s" type="%s"></video>',
         htmlspecialchars($index+1),
         htmlspecialchars($file),
         htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file))),
         htmlspecialchars($path),
         htmlspecialchars($file),
-        htmlspecialchars(substr($file,stripos($file,".")+1))
+        htmlspecialchars(mime_content_type($file) == "video/video/quicktime" ? "video/mp4" : mime_content_type($file))
       );
     } else {
       list($pWidth,$pHeight) = getimagesize($file);
@@ -281,7 +282,7 @@
       );
     }
     if(isset($CONTEXT['next'])) {
-      $page = sprintf('<a href="index.php?path=%s&pic=%s">%s</a>', htmlspecialchars($path), htmlspecialchars($CONTEXT['next']), $page);
+      $page = sprintf('<span href="index.php?path=%s&pic=%s">%s</span>', htmlspecialchars($path), htmlspecialchars($CONTEXT['next']), $page);
     }
     $CONTEXT['pictag'] = $page;
     if(is_file($file.'.txt') && is_readable($file.'.txt')) {
@@ -317,7 +318,8 @@
   }
   foreach($ayFiles as $key=>$file) {
     $page .= sprintf(
-      '<div><a href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
+      '<div><a id="%s" href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
+      htmlspecialchars(preg_replace("/[^a-zA-Z0-9]/", "", $file)),
       htmlspecialchars($path),
       htmlspecialchars($file),
       htmlspecialchars($path),
@@ -371,7 +373,7 @@
     $ayReplace[] = sprintf('<a href="index.php?path=%s">', htmlspecialchars(substr($path,0,strripos($path, "/"))));
     $ayReplace[] = '</a>';
   }
-  $ayReplace[] = sprintf('<a href="index.php?path=%s">', htmlspecialchars($path));
+  $ayReplace[] = sprintf('<a id="parent" href="index.php?path=%s#%s">', htmlspecialchars($path), preg_replace("/[^a-zA-Z0-9]/", "", $ayFiles[$CONTEXT['current'] - 1]));
   $ayReplace[] = '</a>';
   $template = str_replace($aySearch, $ayReplace, $template);
 
@@ -404,7 +406,7 @@
   $ayReplace = array(
     (isset($CONTEXT['pictag'])   ? $CONTEXT['pictag']   : ''),
     (isset($CONTEXT['indextag']) ? $CONTEXT['indextag'] : ''),
-    (isset($CONTEXT['caption'])  ? $CONTEXT['caption']  : ''),
+    (isset($CONTEXT['caption'])  ? '<div class="caption">' . $CONTEXT['caption'] . '</div>' : ''),
     $CONTEXT['count'],
     (isset($CONTEXT['current'])  ? $CONTEXT['current']  : ''),
   );

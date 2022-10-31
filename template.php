@@ -42,34 +42,27 @@
       text-decoration: none;
     }
 
-    address {
-      margin-top: 10px;
-      border-top: 1px solid #000000;
-      font-size: 80%;
-      text-align: center;
-    }
-
     .tabindex {
       width: 100%;
     }
 
-    .tabindex div {
-      display: inline-block;
-      max-width: 240px;
-      max-height: 240px;
-      overflow: hidden;
-    }
+      .tabindex > div {
+        display: inline-block;
+        max-width: 240px;
+        max-height: 240px;
+        overflow: hidden;
+        font-size: 32pt;
+      }
 
     .thumbimg {
-      background-color: #000000;
-      padding: 3px;
+      min-width: 240px;
+      min-height: 240px;
       margin: 50%;
       transform: translate(-50%,-50%);
     }
 
     .picture {
       background-color: #C0C0C0;
-      text-align: center;
       height: 100%;
     }
 
@@ -91,17 +84,14 @@
 
     .picimg {
       background-color: #000000;
-      padding: 0;
       margin: auto;
-      margin-bottom: 0;
-      width: auto;
-      height: auto;
-      max-width: 100%;
-      max-height: 100%;
       display: block;
+      height: 100%;
+      width: auto;
     }
 
     .caption {
+      z-index: 2;
       position: absolute;
       bottom: 0;
       text-align: center;
@@ -133,25 +123,52 @@
     </div>
     <div class="picture">
       <pmg:image/>
-      <div class="caption"><pmg:caption/></div>
+      <pmg:caption/>
     </div>
   </pmg:if>
 <script>
 document.onkeydown = function(ev) {
-	console.log("on key down event: ", ev.keyCode)
 	switch(ev.keyCode) {
 	case 37:
-		// left key pressed
-		let prev=document.getElementById('prev')
-		prev.click();
+		document.getElementById('prev').click();
 		break;
 	case 39:
-		// right key pressed
-		let next=document.getElementById('next')
-		next.click();
+		document.getElementById('next').click();
+		break;
+	case 38:
+		document.getElementById('parent').click();
 		break;
 	}
 }
+var startX = null, startY = null;
+window.addEventListener("touchstart",function(event){
+   if(event.touches.length === 1){
+      startX = event.touches.item(0).clientX;
+      startY = event.touches.item(0).clientY;
+   }else{
+      startX = null;
+      startY = null;
+   }
+});
+window.addEventListener("touchend",function(event){
+   var offset = 100;
+   if(startX || startY){
+      var endX = event.changedTouches.item(0).clientX;
+      var endY = event.changedTouches.item(0).clientY;
+
+      if(endY < startY - offset){
+          document.getElementById('parent').click();
+      } else if(endX > startX + offset){
+          document.getElementById('prev').click();
+      } else if(endX < startX - offset ){
+          document.getElementById('next').click();
+      }
+   }
+});
+setTimeout(function () {
+    var i = document.getElementById(document.location.hash.replace('#',''));
+    (i == null ? null : i.scrollIntoView());
+}, 100);
 </script>
 </body>
 </html>
