@@ -118,8 +118,13 @@
       opacity: 0.75;
       color: white;
       right: 0;
+      min-height: 25px;
     }
-
+    @media only screen and (max-width: 1000px) {
+      .caption {
+        min-height: 50px;
+      }
+    }
     .caption .exif {
       display: none;
     }
@@ -153,17 +158,20 @@
   </pmg:if>
 <script>
 document.onkeydown = function(ev) {
-	switch(ev.keyCode) {
-	case 37:
-		document.getElementById('prev').click();
-		break;
-	case 39:
-		document.getElementById('next').click();
-		break;
-	case 38:
-		document.getElementById('parent').click();
-		break;
-	}
+   switch(ev.keyCode) {
+      case 37:
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
+         document.getElementById('prev').click();
+         break;
+      case 39:
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
+         document.getElementById('next').click();
+         break;
+      case 38:
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
+         document.getElementById('parent').click();
+         break;
+   }
 }
 var startX = null, startY = null;
 window.addEventListener("touchstart",function(event){
@@ -182,17 +190,20 @@ window.addEventListener("touchend",function(event){
       var endY = event.changedTouches.item(0).clientY;
 
       if(endY < startY - offset){
-          document.getElementById('parent').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
+         document.getElementById('parent').click();
       } else if(endX > startX + offset){
-          document.getElementById('prev').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
+         document.getElementById('prev').click();
       } else if(endX < startX - offset ){
-          document.getElementById('next').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
+         document.getElementById('next').click();
       }
    }
 });
 setTimeout(function () {
-    var i = document.getElementById(document.location.hash.replace('#',''));
-    (i == null ? null : i.scrollIntoView());
+   var i = document.getElementById(document.location.hash.replace('#',''));
+   (i == null ? null : i.scrollIntoView());
 }, 100);
 </script>
 </body>
