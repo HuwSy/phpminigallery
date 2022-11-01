@@ -161,16 +161,16 @@
 document.onkeydown = function(ev) {
    switch(ev.keyCode) {
       case 37:
-         document.getElementsByClassName('picture')[0].style.opacity = .5;
          document.getElementById('prev').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
          break;
       case 39:
-         document.getElementsByClassName('picture')[0].style.opacity = .5;
          document.getElementById('next').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
          break;
       case 38:
-         document.getElementsByClassName('picture')[0].style.opacity = .5;
          document.getElementById('parent').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
          break;
    }
 }
@@ -191,14 +191,14 @@ window.addEventListener("touchend",function(event){
       var endY = event.changedTouches.item(0).clientY;
 
       if(endY < startY - offset){
-         document.getElementsByClassName('picture')[0].style.opacity = .5;
          document.getElementById('parent').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
       } else if(endX > startX + offset){
-         document.getElementsByClassName('picture')[0].style.opacity = .5;
          document.getElementById('prev').click();
-      } else if(endX < startX - offset ){
          document.getElementsByClassName('picture')[0].style.opacity = .5;
+      } else if(endX < startX - offset ){
          document.getElementById('next').click();
+         document.getElementsByClassName('picture')[0].style.opacity = .5;
       }
    }
 });

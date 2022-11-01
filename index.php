@@ -300,7 +300,7 @@
       $output .= sprintf("Exposure: %ss (ISO%s)<br>", $exif["EXIF"]["ExposureTime"], $exif["EXIF"]["ISOSpeedRatings"]);
       if (isset($exif["GPS"])) {
         $output .= sprintf(
-          "Latitude: %s %s° %s' %ss - <a href=https://www.openstreetmap.org/?lat=%s%s&lon=%s%s&zoom=15 target=_blank style=color:white> Map >></a><br>",
+          "Latitude: %s %s° %s' %ss - <a href=https://www.openstreetmap.org/?mlat=%s%s&mlon=%s%s&zoom=15 target=_blank style=color:white> Map >></a><br>",
           $exif['GPS']['GPSLatitudeRef'] == "S" ? "-" : "",
           calcGps($exif["GPS"]["GPSLatitude"][0]),
           calcGps($exif["GPS"]["GPSLatitude"][1]),
@@ -340,7 +340,7 @@
   $page = '<div class="tabindex">'."\n";
   if ($path != "" && $path != "/") {
     $page .= sprintf(
-      '<div class="tiles"><a href="index.php?path=%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#Parent" border="0" /><div class="caption">[ Up ]</div></a></div>',
+      '<div class="tiles"><a href="index.php?path=%s" id="prev"><img class="thumbimg" loading="lazy" src="folder.png" alt="#Parent" border="0" /><div class="caption">[ Up ]</div></a></div>',
       htmlspecialchars(substr($path,0,strripos($path, "/")))
     );
   }#
