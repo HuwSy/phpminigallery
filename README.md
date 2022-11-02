@@ -31,7 +31,7 @@ PHP Mini Gallery is very simple to use. You won't need to have any PHP skills.
 
 First, you have to create a directory for the gallery and two folders for images and thumbnails. Make sure that the script is allowed to read the images and create files in the thumbnails directory.
 
-Now you upload all your pictures into this directory. The default image formats allowed are JPEG, PNG and GIF and video formats MP4, MOV, AVI and MPG. The file names need to have a correct suffix. The PHP Mini Gallery shows the pictures in alphabetical order of their file names. I got myself used to name the pictures `01.jpg`, `02.jpg` and so on, but this is not required.
+Now you upload all your pictures into this directory. The default image formats allowed are JPEG, PNG and GIF and video formats MP4, MOV, AVI and MPG. The file names need to have a correct suffix. The PHP Mini Gallery shows the pictures in date modified descending order.
 
 If you want to add a caption to a picture (e.g. a description of the picture's content), you can place the text in another file, which is named like the picture this caption will belong to, but has an additional `.txt` suffix attached. Example: the caption file for the picture `04.jpg` would be named `04.jpg.txt`.
 
