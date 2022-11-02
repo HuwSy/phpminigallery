@@ -1,32 +1,27 @@
 # PHP Mini Gallery
 
-With this PHP script you'll get a full featured gallery in an instant. It does not take much more than copying two php files and your images to your web server.
+With this PHP script you'll get a full featured gallery in an instant. It does not take much more than copying two php files, a folder placeholder file and your images to your web server, then optionally updating a couple of config variables in index.php
 
-## DISCONTINUED
-
-This project is quite old. It was originally written in PHP 3 and HTML 3.2, and has never really evolved since then. I stopped using PHP many years ago, so I cannot easily test changes to this project any more.
-
-For this reason, I won't maintain this project any longer. Feel free to fork and enhance it!
+This is a limited evolution/extension of the retired project by http://GitHub.com/shred to be a bit more mobile friendly and to support videos and subfolders. More may be done around reducing page loads for client side calls at a later date but this has reached my requirements for now. 
 
 ## Features
 
 Some features of this gallery script are:
 
 * Easy installation
-* Index page generation of all pictures
-* Automatic thumbnail generation
-* Individual captions for each picture
-* Multi language support
+* Index page generation of all pictures, videos and subfolders in modified descending order
+* Automatic thumbnail generation of images and gif thumbnail generation of videos
+* Individual captions for each picture from txt file or exif data
 * Layout is easily changed, even without PHP skills
-* Runs on almost any host who supports PHP
+* Runs on almost any host who supports PHP, some picture formats and video thumbnails require imagemagick or ffmpeg
 * No database required
-* Source code available at [GitHub](https://github.com/shred/phpminigallery)
+* Source code available at [GitHub](https://github.com/HuwSy/phpminigallery)
 
 ## Prerequisites
 
-This script is quite easy-going. PHP 4.1 is already sufficient, which is provided by almost all web hosts. Register globals may be enabled or disabled. The script is PHP 5 compliant.
+This script is quite easy-going. PHP 4.1 is already sufficient, which is provided by almost all web hosts. Register globals may be enabled or disabled. The script will run on php8.1.
 
-For thumbnail generation, either GD2, ImageMagick or GD is required. GD is not recommended though, and should only be used as a last resort, because the quality of the thumbnail images will be really poor. If you use ImageMagick, make sure PHP SafeMode is turned off.
+For thumbnail generation, either GD2, ImageMagick or GD is required for images and FFMPEG for videos. GD is not recommended though, and should only be used as a last resort, because the quality of the thumbnail images will be really poor. If you use ImageMagick or FFMPEG, make sure PHP SafeMode is turned off.
 
 This script is entirely file-based, and does not involve any database programming.
 
@@ -34,17 +29,17 @@ This script is entirely file-based, and does not involve any database programmin
 
 PHP Mini Gallery is very simple to use. You won't need to have any PHP skills.
 
-First, you have to create a directory for the gallery. Make sure that the script is allowed to create files in this directory.
+First, you have to create a directory for the gallery and two folders for images and thumbnails. Make sure that the script is allowed to read the images and create files in the thumbnails directory.
 
-Now you upload all your pictures into this directory. The only image formats allowed are JPEG, PNG and GIF. The file names need to have a correct suffix, and must not start with `th_`, because it is reserved for the thumbnail files. The PHP Mini Gallery shows the pictures in alphabetical order of their file names. I got myself used to name the pictures `01.jpg`, `02.jpg` and so on, but this is not required.
+Now you upload all your pictures into this directory. The default image formats allowed are JPEG, PNG and GIF and video formats MP4, MOV, AVI and MPG. The file names need to have a correct suffix. The PHP Mini Gallery shows the pictures in alphabetical order of their file names. I got myself used to name the pictures `01.jpg`, `02.jpg` and so on, but this is not required.
 
 If you want to add a caption to a picture (e.g. a description of the picture's content), you can place the text in another file, which is named like the picture this caption will belong to, but has an additional `.txt` suffix attached. Example: the caption file for the picture `04.jpg` would be named `04.jpg.txt`.
 
-Finally you have to place the PHP files `index.php` and `template.php` from the PHP Mini Gallery archive into that directory. And that's all!
+Finally you have to place the files from the PHP Mini Gallery archive into the gallery directory. And that's all!
 
-If you invoke the page with your browser, you'll first see an index print of all pictures' thumbnails. At the first invocation, the thumbnails will be created automatically, and will be stored in files with an appropriate file name, but `th_` attached before, and `.jpg` behind the file name. Example: the thumbnail of picture `04.jpg` is named `th_04.jpg.jpg`. The double jpg suffix is intentional. This first invocation could take a while until all thumbnails are created, and may even time out. For subsequent calls, the thumbnail files will be used though, so you will receive the index page much faster. PHP Mini Gallery will detect if you have modified a picture, and will automatically re-create its thumbnail image.
+If you invoke the page with your browser, you'll first see an index print of all pictures' thumbnails. At the first invocation, the thumbnails will be created automatically, and will be stored in files with an appropriate file name. his first invocation could take a while until all thumbnails are created, and may even time out. For subsequent calls, the thumbnail files will be used though, so you will receive the index page much faster. PHP Mini Gallery will detect if you have modified a picture, and will automatically re-create its thumbnail image.
 
-If you click on a thumbnail, you will get the full size picture. Starting from there, you can see the next picture by clicking into the current picture, or you can go forward and back using the navigation links.
+If you click on a thumbnail, you will get the full size picture. Starting from there, you can see the next picture by swiping the current picture, or you can go forward and back using the navigation links.
 
 ## Configuration
 
@@ -69,12 +64,6 @@ Here you will set the scaling tool.
 * `gd` uses the legacy GD library, which should be available in almost all PHP installations. The quality is quite poor, though, so you should only take this one if you have no other choice.
 
 Note: You must set the absolute path to ImageMagick's `convert` tool. If you are in the unlucky situation to be confronted with a Windows server, also remember to double the backslashes (e.g. '`C:\\path\\to\\convert.exe`').
-
-```php
-$CONFIG['index.cols']     = 6;        // Colums per row on index print
-```
-
-The number of picture colums at each row of the index print.
 
 ```php
 $CONFIG['template']       = 'template.php';   // Template file
