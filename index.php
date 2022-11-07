@@ -1,8 +1,9 @@
 <?php
   /**
-   * The PHP Mini Gallery V1.3
+   * The PHP Mini Gallery V1.4
    * (C) 2008 Richard "Shred" Koerber -- all rights reserved
    * http://www.shredzone.net/go/minigallery
+   * extended by http://github.com/huwsy
    *
    * Requirements: PHP 4.1 or higher, GD (GD2 recommended) or ImageMagick
    *
@@ -20,6 +21,8 @@
    * along with this program; if not, write to the Free Software
    * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    */
+
+  if($argc>1) parse_str(implode('&',array_slice($argv, 1)), $_GET);
 
   /*=== CONFIGURATION ===*/
   $CONFIG = array();
@@ -42,6 +45,9 @@
     $CONFIG['thumb.prefix'] = '.';
   }
   $CONFIG['thumb.ratio'] = $CONFIG['thumb.height']/$CONFIG['thumb.width'];
+
+  $view = 1;
+  if (isset($_GET['build'])) $view = 0;
 
   /*=== ALLOW SUBFOLDERS ===*/
   $path = "";
@@ -168,23 +174,7 @@
     exit();
   }
 
-  /*=== SHOW A THUMBNAIL? ===*/
-  if(isset($_GET['full'])) {
-    $file = trim($_GET['full']);
-
-    //--- Protect against hacker attacks ---
-    if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
-
-    $file = $CONFIG['images'] . $path . "/" . $file;
-
-    display_thumb($file);
-  }
-
-  if(isset($_GET['thumb'])) {
-    $file = trim($_GET['thumb']);
-
-    //--- Protect against hacker attacks ---
-    if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
+  function make_thumb($CONFIG, $path, $file, $disp) {
     if ($path != "" && $path != "/") {
       @mkdir($CONFIG['thumbs'] . $path, 0755, true);
     }
@@ -206,14 +196,35 @@
           create_thumb($CONFIG, $file, $thfile);
         }
       }
-      display_thumb($thfile);
-    }else {
+      if ($disp == 1) display_thumb($thfile);
+    } elseif ($disp == 1) {
       //--- Tell there is no image like that ---
       //if(is_file($thfile)) unlink($thfile);         // Delete a matching thumbnail file
       header('HTTP/1.0 404 Not Found');
       print('Sorry, this picture was not found');
       exit();
     }
+  }
+
+  /*=== SHOW A THUMBNAIL? ===*/
+  if(isset($_GET['full'])) {
+    $file = trim($_GET['full']);
+
+    //--- Protect against hacker attacks ---
+    if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
+
+    $file = $CONFIG['images'] . $path . "/" . $file;
+
+    display_thumb($file);
+  }
+
+  if(isset($_GET['thumb'])) {
+    $file = trim($_GET['thumb']);
+
+    //--- Protect against hacker attacks ---
+    if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
+
+    make_thumb($CONFIG, $path, $file, 1);
   }
 
   /*=== CREATE CONTEXT ===*/
@@ -354,6 +365,7 @@
     );
   }
   foreach($ayFiles as $key=>$file) {
+    if ($view == 0) make_thumb($CONFIG, $path, $file, 0);
     $page .= sprintf(
       '<div class="tiles"><a id="%s" href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
       htmlspecialchars(preg_replace("/[^a-zA-Z0-9]/", "", $file)),
@@ -454,6 +466,6 @@
   /*=== PRINT TEMPLATE ===*/
   ob_start('ob_gzhandler');
   print($template);
-  print("\n".'<!-- Created by PHP Mini Gallery, (C) Richard Shred Koerber, https://github.com/shred/phpminigallery -->'."\n");
+  print("\n".'<!-- Created by PHP Mini Gallery, (C) Richard Shred Koerber, https://github.com/shred/phpminigallery and http://github.com/huwsy -->'."\n");
   exit();
 ?>
