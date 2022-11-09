@@ -22,7 +22,10 @@
    * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
    */
 
+  /*=== Allow shell running to build thumbs in advanced ===*/
   if($argc>1) parse_str(implode('&',array_slice($argv, 1)), $_GET);
+  $view = 1;
+  if (isset($_GET['build'])) $view = 0;
 
   /*=== CONFIGURATION ===*/
   $CONFIG = array();
@@ -46,9 +49,6 @@
   }
   $CONFIG['thumb.ratio'] = $CONFIG['thumb.height']/$CONFIG['thumb.width'];
 
-  $view = 1;
-  if (isset($_GET['build'])) $view = 0;
-
   /*=== ALLOW SUBFOLDERS ===*/
   $path = "";
   if(isset($_GET['path'])) {
@@ -58,7 +58,8 @@
     if(preg_match('#\.\.#', $path)) die("Illegal characters in path!");
   }
 
-  function calcGps($val) {
+  /*=== Additional functions ===*/
+  function calc_gps($val) {
     if (isset($val)) {
       $exp = explode('/', $val);
       return $exp[0] / $exp[1];
@@ -130,7 +131,7 @@
         die("Unknown scale mode ".$CONFIG['thumb.scale']);
     }
 
-    //--- Save it ---
+    //--- Rotate and save it ---
     if($scmode!='im') {
       switch(exif_read_data($file)['Orientation']) {
         case 5:
@@ -157,6 +158,13 @@
   }
 
   function display_thumb($thfile) {
+    //--- Tell there is no image like that ---
+    if ($thfile == "" || !is_file($thfile)) {
+      header('HTTP/1.0 404 Not Found');
+      print('Sorry, this picture was not found');
+      exit();
+    }
+
     //--- Check if there is an if-modified-since header ---
     $fileModified = date('D, d M Y H:i:s \G\M\T', filemtime($thfile));
     if(isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE']==$fileModified) {
@@ -169,12 +177,12 @@
     header('Content-Type: '.mime_content_type($thfile));
     header("Content-Length: ".filesize($thfile));
     header("Last-Modified: $fileModified");
-    header('Expires: ' . gmdate('D, d M Y H:i:s', strtotime("+30 days")) . ' GMT');
+    header('Expires: ' . gmdate('D, d M Y H:i:s', strtotime("+90 days")) . ' GMT');
     readfile($thfile);
     exit();
   }
 
-  function make_thumb($CONFIG, $path, $file, $disp) {
+  function make_thumb($CONFIG, $path, $file) {
     if ($path != "" && $path != "/") {
       @mkdir($CONFIG['thumbs'] . $path, 0755, true);
     }
@@ -192,21 +200,18 @@
       if(!is_file($thfile) || (filemtime($file)>filemtime($thfile))) {
         if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
           create_gif($CONFIG, $file, $thfile);
-        } else {
+        } elseif (preg_match('#\.(' . $CONFIG['files.images'] . ')$#i', $file)) {
           create_thumb($CONFIG, $file, $thfile);
+        } else {
+          return "";
         }
       }
-      if ($disp == 1) display_thumb($thfile);
-    } elseif ($disp == 1) {
-      //--- Tell there is no image like that ---
-      //if(is_file($thfile)) unlink($thfile);         // Delete a matching thumbnail file
-      header('HTTP/1.0 404 Not Found');
-      print('Sorry, this picture was not found');
-      exit();
+      return $thfile;
     }
+    return "";
   }
 
-  /*=== SHOW A THUMBNAIL? ===*/
+  /*=== SHOW A FULL FILE OR THUMBNAIL? ===*/
   if(isset($_GET['full'])) {
     $file = trim($_GET['full']);
 
@@ -224,13 +229,14 @@
     //--- Protect against hacker attacks ---
     if(preg_match('#\.\.|/#', $file)) die("Illegal characters in path!");
 
-    make_thumb($CONFIG, $path, $file, 1);
+    $thfile = make_thumb($CONFIG, $path, $file);
+    display_thumb($thfile);
   }
 
   /*=== CREATE CONTEXT ===*/
   $CONTEXT = array();
 
-  /*=== GET FILE LISTING ===*/
+  /*=== GET FILE AND DIR LISTING ===*/
   $ayFiles = [];
   $ayDirs = [];
   chdir($CONFIG['images'] . $path);
@@ -313,23 +319,23 @@
         $output .= sprintf(
           "Latitude: %s %s° %s' %ss - <a href=https://www.openstreetmap.org/?mlat=%s%s&mlon=%s%s&zoom=15 target=_blank style=color:white> Map >></a><br>",
           $exif['GPS']['GPSLatitudeRef'] == "S" ? "-" : "",
-          calcGps($exif["GPS"]["GPSLatitude"][0]),
-          calcGps($exif["GPS"]["GPSLatitude"][1]),
-          round(calcGps($exif["GPS"]["GPSLatitude"][2])),
+          calc_gps($exif["GPS"]["GPSLatitude"][0]),
+          calc_gps($exif["GPS"]["GPSLatitude"][1]),
+          round(calc_gps($exif["GPS"]["GPSLatitude"][2])),
           $exif['GPS']['GPSLatitudeRef'] == "S" ? "-" : "",
-          calcGps($exif["GPS"]["GPSLatitude"][0]) + calcGps($exif["GPS"]["GPSLatitude"][1])/60 + round(calcGps($exif["GPS"]["GPSLatitude"][2]))/3600,
+          calc_gps($exif["GPS"]["GPSLatitude"][0]) + calc_gps($exif["GPS"]["GPSLatitude"][1])/60 + round(calc_gps($exif["GPS"]["GPSLatitude"][2]))/3600,
           $exif['GPS']['GPSLongitudeRef'] == "W" ? "-" : "",
-          calcGps($exif["GPS"]["GPSLongitude"][0]) + calcGps($exif["GPS"]["GPSLongitude"][1])/60 + round(calcGps($exif["GPS"]["GPSLongitude"][2]))/3600
+          calc_gps($exif["GPS"]["GPSLongitude"][0]) + calc_gps($exif["GPS"]["GPSLongitude"][1])/60 + round(calc_gps($exif["GPS"]["GPSLongitude"][2]))/3600
         );
         $output .= sprintf(
           "Longitude: %s %s° %s' %ss<br>",
           $exif['GPS']['GPSLongitudeRef'] == "W" ? "-" : "",
-          calcGps($exif["GPS"]["GPSLongitude"][0]),
-          calcGps($exif["GPS"]["GPSLongitude"][1]),
-          round(calcGps($exif["GPS"]["GPSLongitude"][2]))
+          calc_gps($exif["GPS"]["GPSLongitude"][0]),
+          calc_gps($exif["GPS"]["GPSLongitude"][1]),
+          round(calc_gps($exif["GPS"]["GPSLongitude"][2]))
         );
-        $output .= sprintf("Altitude: %sm<br>", round(calcGps($exif["GPS"]["GPSAltitude"]),1));
-        $output .= sprintf("Direction: %s°<br>", round(calcGps($exif["GPS"]["GPSImgDirection"]),1));
+        $output .= sprintf("Altitude: %sm<br>", round(calc_gps($exif["GPS"]["GPSAltitude"]),1));
+        $output .= sprintf("Direction: %s°<br>", round(calc_gps($exif["GPS"]["GPSImgDirection"]),1));
       }
       $output .= "</div>";
     }
@@ -365,7 +371,7 @@
     );
   }
   foreach($ayFiles as $key=>$file) {
-    if ($view == 0) make_thumb($CONFIG, $path, $file, 0);
+    if ($view == 0) $page .= "<!--" . make_thumb($CONFIG, $path, $file) . "-->";
     $page .= sprintf(
       '<div class="tiles"><a id="%s" href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
       htmlspecialchars(preg_replace("/[^a-zA-Z0-9]/", "", $file)),
@@ -379,6 +385,7 @@
     );
   }
   $page .= '</div>';
+
   //--- Set content ---
   $CONTEXT['indextag'] = $page;
 
@@ -389,6 +396,7 @@
   ob_end_clean();
 
   $template = preg_replace('#<pmg:ratio/>#s', $CONFIG['thumb.ratio'], $template);
+
   /*=== REMOVE UNMATCHING SECTION ===*/
   if($CONTEXT['page']=='index') {
     $template = preg_replace('#<pmg:if\s+page="picture">.*?</pmg:if>#s', '', $template);
