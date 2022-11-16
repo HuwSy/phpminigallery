@@ -197,7 +197,7 @@
     //--- Get the thumbnail ---
     if(is_file($file) && is_readable($file)) {
       //--- Check if the thumbnail is missing or out of date ---
-      if(!is_file($thfile) || (filemtime($file)>filemtime($thfile))) {
+      if(!is_file($thfile) || filesize($thfile) < 8 || (filemtime($file)>filemtime($thfile))) {
         if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
           create_gif($CONFIG, $file, $thfile);
         } elseif (preg_match('#\.(' . $CONFIG['files.images'] . ')$#i', $file)) {
