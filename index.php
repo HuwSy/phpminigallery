@@ -38,11 +38,12 @@
   $CONFIG['tool.imagick']   = '/usr/bin/convert';   // Path to convert
   $CONFIG['tool.ffmpeg']    = '/usr/bin/ffmpeg';    // Path to convert videos
   $CONFIG['template']       = 'template.php';       // Template file
+  $CONFIG['web']            = '/var/www/gallery';       // Web root path, doesnt have to be where php is ran
   $CONFIG['images']         = '/var/www/gallery/images';    // Start path of images
   $CONFIG['thumbs']         = '/var/www/gallery/thumbs';    // Start path of thumbnails
   $CONFIG['folder']         = 'folder.png';         // Folder icon
   $CONFIG['files.images']   = 'jpe?g|png|gif';      // Allowed images, non jpg|png|gif must be supported by imagemagick and ideally browser
-  $CONFIG['files.videos']   = 'mov|mp4|avi|mpe?g';  // Allowed videos, must be supported by ffmpeg and ideally browser
+  $CONFIG['files.videos']   = 'mov|mp4|avi|mpe?g|mkv';  // Allowed videos, must be supported by ffmpeg and ideally browser
 
   if ($CONFIG['images'] == $CONFIG['thumbs'] && $CONFIG['thumb.prefix'] == '') {
     $CONFIG['thumb.prefix'] = '.';
@@ -50,7 +51,7 @@
   $CONFIG['thumb.ratio'] = $CONFIG['thumb.height']/$CONFIG['thumb.width'];
 
   /*=== ALLOW SUBFOLDERS ===*/
-  $path = "";
+  $path = "/";
   if(isset($_GET['path'])) {
     $path = trim($_GET['path']);
 
@@ -67,11 +68,23 @@
   }
 
   function create_gif($CONFIG, $file, $thfile) {
+    $scale = $CONFIG['thumb.width'].':-1';
+    $video = shell_exec(sprintf(
+      '%s -i %s -vstats 2>&1',
+      $CONFIG['tool.ffmpeg'],
+      $file
+    ));
+    $regex = "/Video: ([^\r\n]*), ([^,]*), ([0-9]{1,4})x([0-9]{1,4})/";
+    if (preg_match($regex, $video, $regs)) {
+      if (($regs [4] ? $regs [4] : null)>($regs [3] ? $regs [3] : null)) {
+        $scale = '-1:'.$CONFIG['thumb.height'];
+      }
+    }
     exec(sprintf(
-      '%s -ss 0 -t 3 -i %s -vf "fps=10,scale=%s:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 %s',
+      '%s -ss 0 -t 3 -i %s -vf "fps=10,scale=%s:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=32[p];[s1][p]paletteuse=dither=bayer" -loop 0 %s',
       $CONFIG['tool.ffmpeg'],
       $file,
-      $CONFIG['thumb.width'],
+      $scale,
       $thfile
     ));
   }
@@ -198,6 +211,9 @@
     if(is_file($file) && is_readable($file)) {
       //--- Check if the thumbnail is missing or out of date ---
       if(!is_file($thfile) || filesize($thfile) < 8 || (filemtime($file)>filemtime($thfile))) {
+        if (is_file($thfile)) {
+          unlink($thfile);
+        }
         if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
           create_gif($CONFIG, $file, $thfile);
         } elseif (preg_match('#\.(' . $CONFIG['files.images'] . ')$#i', $file)) {
@@ -285,22 +301,27 @@
       $CONTEXT['next']  = $ayFiles[$index+1];
 
     //--- Assemble the content ---
+    $v = sprintf("index.php?path=%s&full=%s",
+      htmlspecialchars($path),
+      htmlspecialchars($file)
+    );
+    if (str_starts_with($CONFIG['images'],$CONFIG['web'])) {
+      $v = substr(str_replace($CONFIG['web'],'',$CONFIG['images']),1).$path.'/'.$file;
+    }
     if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
       $page = sprintf(
-        '<video controls class="picimg" alt="#%s %s - %s" border="0"><source src="index.php?path=%s&full=%s" type="%s"></video>',
+        '<video controls class="picimg" alt="#%s %s - %s" border="0"><source src="%s" type="%s"></video>',
         htmlspecialchars($index+1),
         htmlspecialchars($file),
         htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file))),
-        htmlspecialchars($path),
-        htmlspecialchars($file),
+        htmlspecialchars($v),
         htmlspecialchars(mime_content_type($file) == "video/video/quicktime" ? "video/mp4" : mime_content_type($file))
       );
     } else {
       list($pWidth,$pHeight) = getimagesize($file);
       $page = sprintf(
-        '<img class="picimg" src="index.php?path=%s&full=%s" width="%s" height="%s" alt="#%s %s - %s" border="0" />',
-        htmlspecialchars($path),
-        htmlspecialchars($file),
+        '<img class="picimg" src="%s" width="%s" height="%s" alt="#%s %s - %s" border="0" />',
+        htmlspecialchars($v),
         htmlspecialchars($pWidth),
         htmlspecialchars($pHeight),
         htmlspecialchars($index+1),
