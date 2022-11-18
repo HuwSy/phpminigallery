@@ -381,11 +381,12 @@
       '<div class="tiles"><a href="index.php?path=%s" id="prev"><img class="thumbimg" loading="lazy" src="folder.png" alt="#Parent" border="0" /><div class="caption">[ Up ]</div></a></div>',
       htmlspecialchars(substr($path,0,strripos($path, "/")))
     );
-  }#
+  }
   foreach($ayDirs as $key=>$file) {
     $page .= sprintf(
-      '<div class="tiles"><a href="index.php?path=%s/%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#%s" border="0" /><div class="caption">%s</div></a></div>',
+      '<div class="tiles"><a href="index.php?path=%s%s%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#%s" border="0" /><div class="caption">%s</div></a></div>',
       htmlspecialchars($path),
+      ($path == "/" ? "" : "/"),
       htmlspecialchars($file),
       htmlspecialchars($file),
       htmlspecialchars($file)
