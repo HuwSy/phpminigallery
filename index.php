@@ -310,7 +310,9 @@
     }
     if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
       $page = sprintf(
-        '<video controls class="picimg" alt="#%s %s - %s" border="0"><source src="%s" type="%s"></video>',
+        '<video controls poster="index.php?path=%s&thumb=%s" class="picimg" alt="#%s %s - %s" border="0"><source src="%s" type="%s"></video>',
+        htmlspecialchars($path),
+        htmlspecialchars($file),
         htmlspecialchars($index+1),
         htmlspecialchars($file),
         htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file))),
