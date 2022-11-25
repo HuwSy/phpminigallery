@@ -70,7 +70,7 @@
   function create_gif($CONFIG, $file, $thfile) {
     $scale = $CONFIG['thumb.width'].':-1';
     $video = shell_exec(sprintf(
-      '%s -i %s -vstats 2>&1',
+      '%s -i "%s" -vstats 2>&1',
       $CONFIG['tool.ffmpeg'],
       $file
     ));
@@ -81,7 +81,7 @@
       }
     }
     exec(sprintf(
-      '%s -ss 0 -t 3 -i %s -vf "fps=10,scale=%s:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=32[p];[s1][p]paletteuse=dither=bayer" -loop 0 %s',
+      '%s -ss 0 -t 3 -i "%s" -vf "fps=10,scale=%s:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=32[p];[s1][p]paletteuse=dither=bayer" -loop 0 "%s"',
       $CONFIG['tool.ffmpeg'],
       $file,
       $scale,
@@ -302,8 +302,8 @@
 
     //--- Assemble the content ---
     $v = sprintf("index.php?path=%s&full=%s",
-      htmlspecialchars($path),
-      htmlspecialchars($file)
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($path))),
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($file)))
     );
     if (str_starts_with($CONFIG['images'],$CONFIG['web'])) {
       $v = substr(str_replace($CONFIG['web'],'',$CONFIG['images']),1).$path.'/'.$file;
@@ -311,8 +311,8 @@
     if (preg_match('#\.(' . $CONFIG['files.videos'] . ')$#i', $file)) {
       $page = sprintf(
         '<video controls poster="index.php?path=%s&thumb=%s" class="picimg" alt="#%s %s - %s" border="0"><source src="%s" type="%s"></video>',
-        htmlspecialchars($path),
-        htmlspecialchars($file),
+        str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($path))),
+        str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($file))),
         htmlspecialchars($index+1),
         htmlspecialchars($file),
         htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file))),
@@ -381,15 +381,15 @@
   if ($path != "" && $path != "/") {
     $page .= sprintf(
       '<div class="tiles"><a href="index.php?path=%s" id="prev"><img class="thumbimg" loading="lazy" src="folder.png" alt="#Parent" border="0" /><div class="caption">[ Up ]</div></a></div>',
-      htmlspecialchars(substr($path,0,strripos($path, "/")))
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars(substr($path,0,strripos($path, "/")))))
     );
   }
   foreach($ayDirs as $key=>$file) {
     $page .= sprintf(
       '<div class="tiles"><a href="index.php?path=%s%s%s"><img class="thumbimg" loading="lazy" src="folder.png" alt="#%s" border="0" /><div class="caption">%s</div></a></div>',
-      htmlspecialchars($path),
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($path))),
       ($path == "/" ? "" : "/"),
-      htmlspecialchars($file),
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($file))),
       htmlspecialchars($file),
       htmlspecialchars($file)
     );
@@ -399,10 +399,10 @@
     $page .= sprintf(
       '<div class="tiles"><a id="%s" href="index.php?path=%s&pic=%s"><img class="thumbimg" loading="lazy" src="index.php?path=%s&thumb=%s" alt="#%s %s - %s" border="0" /></a></div>',
       htmlspecialchars(preg_replace("/[^a-zA-Z0-9]/", "", $file)),
-      htmlspecialchars($path),
-      htmlspecialchars($file),
-      htmlspecialchars($path),
-      htmlspecialchars($file),
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($path))),
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($file))),
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($path))),
+      str_replace('&','%26',str_replace('+','%2B',htmlspecialchars($file))),
       htmlspecialchars($key+1),
       htmlspecialchars($file),
       htmlspecialchars(date ("d/m/Y H:i:s", filemtime($file)))
