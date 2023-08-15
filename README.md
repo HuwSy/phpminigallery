@@ -71,6 +71,65 @@ $CONFIG['template']       = 'template.php';   // Template file
 
 Path to the template file, which is used for HTML generation. If you want to use a common template file for several galleries, you can also set the path to this file here. The gallery will then only require the `index.php` file in each directory.
 
+## Example debian setup
+```
+echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/sury-php.list
+wget -qO - https://packages.sury.org/php/apt.gpg | sudo gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/debian-php-8.gpg --import
+chmod 644 /etc/apt/trusted.gpg.d/debian-php-8.gpg
+apt install nginx-full mediainfo ffmpeg exiftool php8.1 php8.1-fpm php8.1-gd php8.1-mbstring php8.1-cli php8.1-dev php8.1-curl php8.1-xmlrpc php8.1-xml php8.1-zip
+```
+
+/etc/nginx/conf.d/php
+```
+    location ~ \.php$ {
+          fastcgi_split_path_info ^(.+\.php)(/.+)$;
+          fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
+          fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+          fastcgi_index index.php;
+          include fastcgi_params;
+    }
+```
+
+/etc/nginx/conf.d/cache
+```
+    location ~* \.(jpg|jpeg|gif|css|png|js|woff|ttf|svg|eot)$ {
+        expires 30d;
+    }
+```
+
+nano /etc/nginx/sites-enabled/gallery
+```
+    server {
+        listen 8090;
+        root /var/www/gallery;
+        index index.php;
+        allow 172.16.0.0/8;
+        deny all;
+        location / {
+               include /etc/nginx/conf.d/php;
+               include /etc/nginx/conf.d/cache;
+        }
+    }
+```
+
+```
+sed -i "s/user www-data;/user www-data www-data;/g" /etc/nginx/nginx.conf
+sed -i "s/# server_tokens off;/server_tokens off;/g" /etc/nginx/nginx.conf
+sed -i "s/access_log \/var\/log\/nginx\/access\.log;/access_log off;/g" /etc/nginx/nginx.conf
+sed -i "s/error\.log;/error\.log crit;/g" /etc/nginx/nginx.conf
+
+sed -i '/^;\?listen.owner/ c\listen.owner = www-data' /etc/php/8.1/fpm/pool.d/www.conf
+sed -i '/^;\?listen.group/ c\listen.group = www-data' /etc/php/8.1/fpm/pool.d/www.conf
+sed -i '/^;\?listen.mode/ c\listen.mode = 0660' /etc/php/8.1/fpm/pool.d/www.conf
+
+mkdir -p /var/www/gallery
+wget https://github.com/HuwSy/phpminigallery/archive/refs/heads/master.zip
+unzip master.zip 
+mv master/* /var/www/gallery
+mkdir /var/www/gallery/thumbs
+chown -R www-data:www-data /var/www/gallery
+```
+
 ## Simple Layout Adaptions
 
 The PHP Mini Gallery is designed that all layout changes need to be made in the `template.php` file only. There are some special "tags" which can be used for this purpose, so you can adapt the gallery to your needs, without any PHP knowledge.
